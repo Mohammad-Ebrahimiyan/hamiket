@@ -1,16 +1,24 @@
-import type { CSSObject } from '@mui/material/styles';
+import type { CSSObject } from '@emotion/react';
 
-const ARROW_WIDTH = 10;
-const ARROW_HEIGHT = 14;
+import { COLUMN_GAP, CURVE_HEIGHT, NODE_HEIGHT, ROW_GAP } from './TreeLayout';
+
+const ARROW_WIDTH = 14;
+const ARROW_HEIGHT = 18;
 const LINE = '2px';
 
-const H_GAP = '24px';
-const V_INDENT = '12px';
-const V_STUB = '22px';
-const V_PAD = '4px';
+const CENTER = NODE_HEIGHT / 2;
+
+const V_INDENT = 12;
+const V_STUB = 28;
+const V_PAD = 4;
+
+const px = (value: number) => `${value}px`;
 
 function arrowImage(color: string, rtl: boolean): string {
-  const path = rtl ? 'M9 1 L2 7 L9 13' : 'M1 1 L8 7 L1 13';
+  const mid = ARROW_HEIGHT / 2;
+  const path = rtl
+    ? `M${ARROW_WIDTH - 1} 1 L2 ${mid} L${ARROW_WIDTH - 1} ${ARROW_HEIGHT - 1}`
+    : `M1 1 L${ARROW_WIDTH - 2} ${mid} L1 ${ARROW_HEIGHT - 1}`;
   const svg =
     `<svg xmlns='http://www.w3.org/2000/svg' width='${ARROW_WIDTH}' height='${ARROW_HEIGHT}' ` +
     `viewBox='0 0 ${ARROW_WIDTH} ${ARROW_HEIGHT}'><path d='${path}' fill='none' stroke='${color}' ` +
@@ -32,30 +40,50 @@ export function treeConnectorStyles({
   mobileQuery,
 }: ConnectorOptions): CSSObject {
   const line = `${LINE} solid ${color}`;
-  const entry = (pseudo: string) => `& > li > [data-tree-box]${pseudo}, & > li > button${pseudo}`;
-  const lastEntry = (pseudo: string) =>
-    `& > li:last-of-type > [data-tree-box]${pseudo}, & > li:last-of-type > button${pseudo}`;
+  const entry = (pseudo: string, scope = '') =>
+    `& > li${scope} > [data-tree-box]${pseudo}, & > li${scope} > button${pseudo}`;
 
   const arrow: CSSObject = {
     content: '""',
     position: 'absolute',
     top: '50%',
-    insetInlineStart: `-${ARROW_WIDTH}px`,
-    width: `${ARROW_WIDTH}px`,
-    height: `${ARROW_HEIGHT}px`,
+    insetInlineStart: px(-ARROW_WIDTH),
+    width: px(ARROW_WIDTH),
+    height: px(ARROW_HEIGHT),
     transform: 'translateY(-50%)',
     backgroundImage: arrowImage(color, rtl),
     backgroundRepeat: 'no-repeat',
     pointerEvents: 'none',
   };
 
+  const curve = (width: number): CSSObject => ({
+    content: '""',
+    boxSizing: 'border-box',
+    position: 'absolute',
+    top: `calc(50% - ${CURVE_HEIGHT}px + 1px)`,
+    insetInlineStart: px(-width),
+    width: px(width),
+    height: px(CURVE_HEIGHT),
+    borderBottom: line,
+    borderInlineStart: line,
+    borderEndStartRadius: `${width}px ${CURVE_HEIGHT}px`,
+  });
+
+  const straight: CSSObject = {
+    top: 'calc(50% - 1px)',
+    height: 0,
+    borderInlineStart: 0,
+    borderBottom: line,
+    borderEndStartRadius: 0,
+  };
+
   const vertical: CSSObject = {
-    marginInlineStart: V_INDENT,
+    marginInlineStart: px(V_INDENT),
     '& > li': {
       display: 'block',
       position: 'relative',
-      paddingBlock: V_PAD,
-      paddingInlineStart: V_STUB,
+      paddingBlock: px(V_PAD),
+      paddingInlineStart: px(V_STUB),
     },
     '& > li:not(:last-of-type)::after': {
       content: '""',
@@ -65,66 +93,45 @@ export function treeConnectorStyles({
       insetInlineStart: 0,
       borderInlineStart: line,
     },
-
-    [entry('::after')]: {
-      content: '""',
-      boxSizing: 'border-box',
-      position: 'absolute',
-      top: `calc(50% - 1px)`,
-      insetInlineStart: `-${V_STUB}`,
-      width: V_STUB,
-      borderTop: line,
-    },
-
-    [lastEntry('::after')]: {
-      top: `-${V_PAD}`,
-      height: `calc(50% + ${V_PAD} + 1px)`,
-      borderTop: 0,
-      borderInlineStart: line,
-      borderBottom: line,
+    [entry('::after')]: curve(V_STUB),
+    [entry('::after', ':last-of-type')]: {
+      top: px(-V_PAD),
+      height: `calc(50% + ${V_PAD}px + 1px)`,
     },
     [entry('::before')]: arrow,
   };
 
   const horizontal: CSSObject = {
-    marginInlineStart: H_GAP,
-    // خط از والد تا ستون عمودی
+    marginInlineStart: px(COLUMN_GAP),
     '&::before': {
       content: '""',
       position: 'absolute',
-      top: '50%',
-      insetInlineStart: `-${H_GAP}`,
-      width: H_GAP,
+      top: px(CENTER - 1),
+      insetInlineStart: px(-COLUMN_GAP),
+      width: px(COLUMN_GAP),
       borderTop: line,
     },
     '& > li': {
       display: 'flex',
-      alignItems: 'center',
+      alignItems: 'flex-start',
       position: 'relative',
-      paddingBlock: '6px',
-      paddingInlineStart: H_GAP,
+      paddingInlineStart: px(COLUMN_GAP),
     },
-    // خط افقی هر فرزند
-    '& > li::before': {
-      content: '""',
-      position: 'absolute',
-      top: '50%',
-      insetInlineStart: 0,
-      width: H_GAP,
-      borderTop: line,
-    },
-    // ستون عمودی مشترک
+    '& > li + li': { marginBlockStart: px(ROW_GAP) },
     '& > li::after': {
       content: '""',
       position: 'absolute',
       top: 0,
-      bottom: 0,
+      bottom: px(-ROW_GAP),
       insetInlineStart: 0,
       borderInlineStart: line,
     },
-    '& > li:first-of-type::after': { top: '50%' },
-    '& > li:last-of-type::after': { bottom: '50%' },
+    '& > li:first-of-type::after': { top: px(CENTER) },
+    '& > li:last-of-type::after': { bottom: 'auto', height: px(CENTER - CURVE_HEIGHT + 1) },
     '& > li:only-of-type::after': { display: 'none' },
+    [entry('::after')]: curve(COLUMN_GAP),
+    [entry('::after', ':first-of-type')]: straight,
+    [entry('::after', ':only-of-type')]: straight,
     [entry('::before')]: arrow,
   };
 

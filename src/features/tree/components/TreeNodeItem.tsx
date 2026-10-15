@@ -12,6 +12,7 @@ import { messages } from '../messages';
 import type { TreeNode } from '../model/tree.types';
 import { hasChildren } from '../services/tree.operations';
 import { treeConnectorStyles } from './treeConnectors';
+import { NODE_HEIGHT, nodeWidth } from './TreeLayout';
 
 export interface TreeNodeHandlers {
   onToggle: (nodeId: string) => void;
@@ -32,7 +33,7 @@ interface TreeNodeItemProps {
 
 const itemSx: SxProps<Theme> = (theme) => ({
   display: { xs: 'block', md: 'flex' },
-  alignItems: 'center',
+  alignItems: 'flex-start',
   outline: 'none',
   '&:focus-visible > [data-tree-box]': {
     outline: `3px solid ${theme.palette.info.main}`,
@@ -40,36 +41,38 @@ const itemSx: SxProps<Theme> = (theme) => ({
   },
 });
 
-const boxSx: SxProps<Theme> = (theme) => ({
-  position: 'relative',
-  display: 'flex',
-  alignItems: 'center',
-  gap: 1,
-  width: { xs: '100%', md: 'auto' },
-  minWidth: { xs: 0, md: 170 },
-  maxWidth: { xs: 'none', md: 280 },
-  minHeight: 44,
-  py: 0.75,
-  px: 2,
-  border: '1px solid',
-  borderColor: 'primary.light',
-  borderRadius: 1.5,
-  bgcolor: 'background.paper',
-  cursor: 'pointer',
-  userSelect: 'none',
-  transition: 'background-color 120ms ease, box-shadow 120ms ease, opacity 120ms ease',
-  '@media (hover: hover)': { '&:hover': { bgcolor: alpha(theme.palette.primary.main, 0.1) } },
-  '&[data-root], &[data-selected]': {
-    bgcolor: 'primary.main',
-    color: 'primary.contrastText',
-    '@media (hover: hover)': { '&:hover': { bgcolor: 'primary.dark' } },
-  },
-  '&[data-selected]': {
-    borderColor: 'primary.dark',
-    boxShadow: `0 0 0 3px ${alpha(theme.palette.primary.main, 0.25)}`,
-  },
-  '&[data-cut-pending]': { opacity: 0.65, borderStyle: 'dashed' },
-});
+const getBoxSx =
+  (level: number): SxProps<Theme> =>
+  (theme) => ({
+    position: 'relative',
+    display: 'flex',
+    alignItems: 'center',
+    gap: 1,
+    flexShrink: 0,
+    width: { xs: '100%', md: nodeWidth(level) },
+    minHeight: NODE_HEIGHT,
+    height: { xs: 'auto', md: NODE_HEIGHT },
+    py: 0.75,
+    px: 2,
+    border: '1px solid',
+    borderColor: 'primary.light',
+    borderRadius: 1.5,
+    bgcolor: 'background.paper',
+    cursor: 'pointer',
+    userSelect: 'none',
+    transition: 'background-color 120ms ease, box-shadow 120ms ease, opacity 120ms ease',
+    '@media (hover: hover)': { '&:hover': { bgcolor: alpha(theme.palette.primary.main, 0.1) } },
+    '&[data-root], &[data-selected]': {
+      bgcolor: 'primary.main',
+      color: 'primary.contrastText',
+      '@media (hover: hover)': { '&:hover': { bgcolor: 'primary.dark' } },
+    },
+    '&[data-selected]': {
+      borderColor: 'primary.dark',
+      boxShadow: `0 0 0 3px ${alpha(theme.palette.primary.main, 0.25)}`,
+    },
+    '&[data-cut-pending]': { opacity: 0.65, borderStyle: 'dashed' },
+  });
 
 const moreSx: SxProps<Theme> = (theme) => ({
   display: 'none',
@@ -79,16 +82,16 @@ const moreSx: SxProps<Theme> = (theme) => ({
   '@media (hover: none)': { display: 'inline-flex' },
 });
 
-const addButtonSx: SxProps<Theme> = {
-  width: { xs: '100%', md: 'auto' },
-  minWidth: { xs: 0, md: 170 },
-  minHeight: 44,
+const getAddButtonSx = (level: number): SxProps<Theme> => ({
+  flexShrink: 0,
+  width: { xs: '100%', md: nodeWidth(level) },
+  height: NODE_HEIGHT,
   justifyContent: 'flex-start',
   borderStyle: 'dashed',
   borderColor: 'primary.light',
   color: 'primary.main',
   '&:hover': { borderStyle: 'dashed' },
-};
+});
 
 const Group = styled('ul')(({ theme }) =>
   treeConnectorStyles({
@@ -133,7 +136,8 @@ export function TreeNodeItem({
         data-cut-pending={isCut ? '' : undefined}
         onClick={() => handlers.onToggle(node.id)}
         onContextMenu={(event) => handlers.onContextMenu(node.id, event)}
-        sx={boxSx}
+        title={node.label}
+        sx={getBoxSx(level)}
       >
         {hasChildren(node) &&
           (node.expanded ? (
@@ -144,7 +148,15 @@ export function TreeNodeItem({
         <Typography
           component="span"
           variant="body2"
-          sx={{ flex: 1, minWidth: 0, fontWeight: isRoot ? 700 : 500, overflowWrap: 'anywhere' }}
+          sx={{
+            flex: 1,
+            minWidth: 0,
+            fontWeight: isRoot ? 700 : 500,
+            overflowWrap: 'anywhere',
+            overflow: { md: 'hidden' },
+            textOverflow: { md: 'ellipsis' },
+            whiteSpace: { md: 'nowrap' },
+          }}
         >
           {node.label}
         </Typography>
@@ -187,7 +199,7 @@ export function TreeNodeItem({
               startIcon={<AddCircleOutlined />}
               aria-label={messages.tree.addChildTo(node.label)}
               onClick={() => handlers.onAdd(node)}
-              sx={addButtonSx}
+              sx={getAddButtonSx(level + 1)}
             >
               {messages.tree.add}
             </Button>
